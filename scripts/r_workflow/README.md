@@ -26,11 +26,11 @@ flat-file writer is the course reference `write.FVSfiles()`
 
 ## Setup — a work dir on scratch, then shell into the image
 
-Keep the clone as *code*; run in a scratch **work dir** so outputs (the DB,
+Keep the clone as *code* and run in a separate **work dir** so outputs (the DB,
 keyword files, `runs/`) land there, not in the repo:
 
 ```bash
-export TK=/mnt/beegfs/scratch/$USER/fvs-hpc-toolkit    # this clone (code)
+export TK=$HOME/fvs-hpc-toolkit            # <-- set to WHEREVER you cloned this repo
 export SIF=/mnt/beegfs/scratch/$USER/fvs_ie.sif         # the pulled engine image
 export FVS_DATA_DIR=$TK/examples/inventory              # bundled 3-stand sample; omit to use your own data/
 
@@ -39,9 +39,11 @@ apptainer shell --bind /mnt/beegfs/scratch "$SIF"       # enter the container
 # the prompt is now  Apptainer>   — run the track steps below, then `exit`
 ```
 
-Inside the shell, your work dir is the current directory and everything writes
-there. (`--bind /mnt/beegfs/scratch` makes scratch visible inside; home is
-auto-mounted, so if your clone/work dir are in home you can drop it.)
+`TK` must point at your actual clone — verify with `ls $TK/scripts` *before* you
+shell in; a wrong `TK` is the usual cause of "cannot open file" errors inside.
+The clone can live in home (Apptainer auto-mounts it); the **work dir** here is on
+scratch, which `--bind /mnt/beegfs/scratch` makes visible inside the container.
+Everything writes to the work dir (the current directory).
 
 ## Track A — batch (R generates keyword files → file-based runner)
 
