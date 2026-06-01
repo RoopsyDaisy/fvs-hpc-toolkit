@@ -41,6 +41,9 @@ run_id   <- job$run_id
 stand_id <- job$stand_id
 years    <- as.integer(job$years)
 cfg_path <- normalizePath(job$config, mustWork = TRUE)
+# Per-job seed so stochastic hooks reproduce across reruns (NA if no seed column).
+seed     <- if (!is.null(job$seed) && !is.na(job$seed)) as.integer(job$seed) else NA_integer_
+if (!is.na(seed)) set.seed(seed)
 
 # Engine dir: $FVS_BIN (the image sets /opt/fvs/bin), else the dev-container fallback.
 fvs_bin <- if (nzchar(Sys.getenv("FVS_BIN"))) Sys.getenv("FVS_BIN") else
@@ -83,8 +86,25 @@ si   <- grep("SimEnd", names(out))
 summ <- out[[ if (length(si)) si[length(si)] else length(out) ]]   # matrix
 
 write.csv(as.data.frame(summ), "stand_summary.csv", row.names = FALSE)
-writeLines(c(sprintf("run_id: %s", run_id), sprintf("stand:  %s", stand_id),
-             sprintf("years:  %d", years),  sprintf("config: %s", cfg_path),
-             sprintf("desc:   %s", desc)), "run_info.txt")
+
+# Provenance: stamp enough to reproduce this run. toolkit_sha is best-effort (git
+# may be absent in the image / .git not mounted); image digest comes from the
+# caller via $IMAGE (e.g. the sbatch passes `apptainer inspect` output).
+toolkit_sha <- tryCatch(
+  system2("git", c("-C", repo_root, "rev-parse", "--short", "HEAD"),
+          stdout = TRUE, stderr = FALSE)[1], error = function(e) NA)
+if (length(toolkit_sha) == 0 || is.na(toolkit_sha)) toolkit_sha <- "unknown"
+writeLines(c(
+  sprintf("run_id:      %s", run_id),
+  sprintf("stand:       %s", stand_id),
+  sprintf("years:       %d", years),
+  sprintf("config:      %s", cfg_path),
+  sprintf("desc:        %s", desc),
+  sprintf("seed:        %s", if (is.na(seed)) "none" else seed),
+  sprintf("toolkit_sha: %s", toolkit_sha),
+  sprintf("image:       %s", Sys.getenv("IMAGE", "unset")),
+  sprintf("engine_bin:  %s", fvs_bin),
+  sprintf("run_at:      %s", format(Sys.time(), "%Y-%m-%dT%H:%M:%S%z"))
+), "run_info.txt")
 
 cat(sprintf("[ok] %s  (stand=%s, %dyr) — %s\n", run_id, stand_id, years, desc))

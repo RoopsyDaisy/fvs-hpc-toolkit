@@ -52,7 +52,7 @@ SWEEP_RESID_BA="none,60,100,140" SWEEP_THIN_YEAR=2033 \
 
 # 2. run the whole sweep as one array
 sbatch --array=1-$(wc -l < sweep/keyfiles.txt)%50 --partition='cpu(all)' --account=afflecklab --time=00:20:00 \
-  --export=SIF=$SIF,VARIANT=ie,MANIFEST=$PWD/sweep/keyfiles.txt,FVS_INPUT=$PWD/sweep/FVS_Data.db,CLUSTER_DIR=$TK/cluster \
+  --export=SIF=$SIF,VARIANT=ie,MANIFEST=$PWD/sweep/keyfiles.txt,FVS_INPUT=$PWD/sweep/FVS_Data.db,OUTROOT=r_sweep_runs,CLUSTER_DIR=$TK/cluster \
   $TK/cluster/fvs_array.sbatch
 
 # 3. aggregate: join each run's summary back onto the parameters

@@ -50,7 +50,7 @@ The clone can live in home (Apptainer auto-mounts it); the **work dir** here is 
 scratch, which `--bind /mnt/beegfs/scratch` makes visible inside the container.
 Everything writes to the work dir (the current directory).
 
-## Track A — batch (R generates keyword files → file-based runner)
+## Batch generators — keyword files for the array (example [02-parallel-batch](../../examples/02-parallel-batch/))
 
 R builds an FVS input database from the inventory CSVs, then templates one
 *database-style* keyword file per stand (each reads its records from the shared
@@ -87,7 +87,7 @@ sbatch --array=1-$(wc -l < keyfiles.txt)%50 \
 > `FVS<variant>` binary, run the `Rscript …` lines directly (no shell) and pass
 > `FVS_BIN=/dir/with/FVSie` to `run_local.sh`.
 
-### Track A (sweep) — parameter sweep / Monte Carlo
+### Sweep generator — parameter sweep / Monte Carlo (example 02)
 
 To vary a treatment across runs (the Monte Carlo pattern), use `generate_sweep.R`
 instead of `generate_keyfiles.R` at step 2. It expands a grid of
@@ -137,7 +137,7 @@ agg <- do.call(rbind, lapply(seq_len(nrow(man)), function(i) {
 > above the stand's standing BA is a no-op (you can't thin below what's there) —
 > expected, not a bug.
 
-## Track B — interactive (R drives FVS via rFVS)
+## rFVS driver — R drives FVS, one stand (example [03-rfvs-insim](../../examples/03-rfvs-insim/))
 
 For a single stand, generate a flat-file keyword + tree file, load the FVS shared
 library, run it cycle-by-cycle, and pull per-cycle tree lists + the summary into R

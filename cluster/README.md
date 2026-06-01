@@ -7,6 +7,10 @@ Montana's **Hellgate** Research cluster
 ([`hellgate.rci.umt.edu`](https://www.umt.edu/it/rci/hellgate/)). The cluster path
 is for large simulation campaigns — many keyword files run in parallel.
 
+> This page documents the runner **mechanics + flags**. For the canonical,
+> copy-pasteable end-to-end commands, use the [example workflows](../examples/) —
+> they're the single source of truth for the `sbatch … --export=…` lines.
+
 > **First time on the cluster?** Before any of step 1 below, run
 > [`cluster/hellgate_probe.sh`](hellgate_probe.sh) once on the login node.
 > It reports partitions, walltime caps, Apptainer + fakeroot, the storage

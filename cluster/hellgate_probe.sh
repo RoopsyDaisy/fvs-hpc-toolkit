@@ -2,7 +2,7 @@
 # First-contact Hellgate probe: gather everything we need to know about the
 # cluster in one shot, write a single report, exit. Run this on the Hellgate
 # login node (hellgate.rci.umt.edu) the first time we have access -- it
-# answers the open questions in docs/HELLGATE_FVS.md "[confirm on cluster]"
+# answers the open questions in docs/HELLGATE.md "[confirm on cluster]"
 # without requiring any of our images yet, then runs ONE minimal Apptainer +
 # SLURM end-to-end test to prove the path is alive.
 #
@@ -241,7 +241,7 @@ EOF
 fi
 
 # ------------------------------------------------ open questions to confirm ---
-section "Open questions for follow-up (per \`docs/HELLGATE_FVS.md\`)"
+section "Open questions for follow-up (per \`docs/HELLGATE.md\`)"
 cat <<'EOF' | tee -a "$REPORT" >&3
 Use the sections above to answer:
 

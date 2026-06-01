@@ -44,7 +44,7 @@ mkdir -p logs "$OUTROOT"
 # and we pass the few vars the driver needs explicitly. --bind makes the toolkit
 # clone (DRIVER + configs + inventory) and the work dir reachable inside.
 apptainer exec --cleanenv --bind "$BIND" \
-  --env FVS_DATA_DIR="${FVS_DATA_DIR:-}" --env VARIANT="${VARIANT:-ie}" \
+  --env FVS_DATA_DIR="${FVS_DATA_DIR:-}" --env VARIANT="${VARIANT:-ie}" --env IMAGE="$SIF" \
   "$SIF" Rscript "$DRIVER" "$JOBS" "$SLURM_ARRAY_TASK_ID" "$OUTROOT"
 
-echo "Task ${SLURM_ARRAY_TASK_ID} done: ${OUTROOT}/$(sed -n "$((SLURM_ARRAY_TASK_ID+1))p" "$JOBS" | cut -d, -f1)"
+echo "Task ${SLURM_ARRAY_TASK_ID} done (outputs under ${OUTROOT}/)"

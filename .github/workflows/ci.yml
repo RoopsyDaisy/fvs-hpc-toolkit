@@ -32,7 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends shellcheck
-      - run: shellcheck cluster/*.sh cluster/fvs_array.sbatch
+      - run: shellcheck cluster/*.sh cluster/*.sbatch
 
   integration:
     name: Full suite + batch runner against the published image
@@ -50,7 +50,7 @@ jobs:
           docker run --rm -v "$PWD:/w" "$ENGINE_IMAGE" bash -c '
             set -euo pipefail
             cd /tmp
-            cp /w/examples/iet01/iet01.key /w/examples/iet01/iet01.tre .
+            cp /w/examples/01-single-run/iet01.key /w/examples/01-single-run/iet01.tre .
             echo "$PWD/iet01.key" > keyfiles.txt
             VARIANT=ie bash /w/cluster/run_local.sh keyfiles.txt runs
             # assert a real multi-cycle projection landed, not just exit 0

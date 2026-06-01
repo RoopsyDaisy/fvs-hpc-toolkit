@@ -39,7 +39,7 @@ for (case in CASES) (function(case) {
   outfiles <- list.files(run, pattern = "\\.(out|sum)$", full.names = TRUE)
   outtxt   <- unlist(lapply(outfiles, readLines, warn = FALSE))
 
-  # FVS STOP codes 0/10/20 are all non-fatal completions (see docs/HELLGATE_FVS.md).
+  # FVS STOP codes 0/10/20 are all non-fatal completions (see docs/HELLGATE.md).
   check(tag("exit"), isTRUE(st %in% c(0L, 10L, 20L)))
 
   # it must produce a non-empty main output file (.out or run summary .sum)

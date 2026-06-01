@@ -3,7 +3,7 @@
 # The workflows read the inventory CSVs from a data directory, default <repo>/data/
 # (gitignored, you supply your own — see data/README.md). Set the env var
 # FVS_DATA_DIR to read from elsewhere — e.g. the bundled 3-stand sample that ships
-# with the repo so Track A runs straight from a clone:
+# with the repo so the batch examples run straight from a clone:
 #     FVS_DATA_DIR=examples/inventory
 # A relative FVS_DATA_DIR is resolved against the repo root; an absolute one is
 # used as-is. Resolving through here means a missing file fails with an actionable

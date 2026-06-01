@@ -23,7 +23,8 @@ faster.
 
 The three bundled configs show the spectrum: `baseline` (no treatment),
 `thin_to_ba` (cut a fixed proportion — the simplest R treatment), `harvest_largest`
-(inspect the live tree list, cut the largest ~30% by DBH — the case that *needs* R).
+(inspect the live tree list, remove the largest stems until ~30% of TPA is cut,
+TPA-weighted — the case that *needs* R).
 
 ## Run it (on Hellgate)
 
@@ -58,13 +59,15 @@ apptainer exec "$SIF" Rscript -e '
   runs <- list.dirs("r_rfvs_runs", recursive=FALSE)
   rows <- do.call(rbind, lapply(runs, function(d){
     s <- read.csv(file.path(d,"stand_summary.csv"), check.names=FALSE)
-    cbind(run_id=basename(d), s[s$Year==2083, c("Year","Tpa","ATBA")])
+    cbind(run_id=basename(d), s[s$Year==max(s$Year), c("Year","Tpa","ATBA")])
   }))
   print(rows, row.names=FALSE)'
 ```
 
 Verified locally (native engine): the three scenarios diverge as expected — e.g.
-CARB_2 final basal area is ~13 (baseline) vs ~7 (thin 50%) vs ~10 (harvest largest).
+CARB_2 final-year (2103) basal area is ~15 (baseline) vs ~8 (thin 50%) vs ~11
+(harvest-largest), i.e. removing the *largest* stems leaves more BA than thinning
+the same TPA share from across the diameter distribution.
 
 ## Develop a new scenario
 

@@ -40,7 +40,12 @@ grid <- expand.grid(stand_id = stands, config = configs,
                     KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE)
 grid$run_id <- paste0(grid$stand_id, "__", sub("\\.R$", "", basename(grid$config)))
 grid$years  <- years
-grid <- grid[, c("run_id", "stand_id", "years", "config")]
+# A deterministic per-job seed (base from $RFVS_SEED) so stochastic hooks are
+# reproducible across reruns: same jobs.csv -> same draws. The driver set.seed()s it.
+seed_base   <- suppressWarnings(as.integer(Sys.getenv("RFVS_SEED", "1")))
+if (is.na(seed_base)) seed_base <- 1L
+grid$seed   <- seed_base + seq_len(nrow(grid))
+grid <- grid[, c("run_id", "stand_id", "years", "config", "seed")]
 
 dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
 jobs_csv <- file.path(outdir, "jobs.csv")
