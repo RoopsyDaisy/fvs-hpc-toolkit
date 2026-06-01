@@ -4,7 +4,8 @@ The runbook for batch FVS on the University of Montana **Hellgate** cluster
 ([`hellgate.rci.umt.edu`](https://www.umt.edu/it/rci/hellgate/)). Goal: build many
 keyword (`.key`) files, then run them in parallel — one FVS invocation per file.
 
-For a 5-minute single-stand walkthrough first, see [../QUICKSTART.md](../QUICKSTART.md).
+For a single-stand walkthrough first, see [example 01-single-run](../examples/01-single-run/);
+the [example workflows](../examples/) cover single → parallel → rFVS-in-the-loop.
 
 > **Validated on Hellgate (2026-06-01):** GHCR pull → `.sif` → SLURM → `apptainer
 > exec FVSie` on a compute node, output on BeeGFS. The cluster facts below are

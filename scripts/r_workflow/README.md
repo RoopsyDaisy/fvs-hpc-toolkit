@@ -1,5 +1,10 @@
 # R workflows for FVS
 
+> Reference for the underlying scripts. For runnable, end-to-end workflows, start
+> with the **[example workflows](../../examples/)** (single run → parallel batch →
+> rFVS-in-the-loop) — they wire these scripts into the generate → array → aggregate
+> pattern. This page documents the generators + the rFVS driver themselves.
+
 R-based ways to generate FVS keyword files and drive the engine. They need R with
 `RSQLite`, `DBI`, and `rFVS` — all provided by the **engine image** — and the
 Hellgate login node has no R of its own, so these run *inside the container*. Two
@@ -148,6 +153,14 @@ Rscript $TK/scripts/r_workflow/project_stand.R CARB_2 55
 
 The engine `.so` resolves automatically from `$FVS_BIN` (the image sets it to
 `/opt/fvs/bin`); pass a 3rd argument to override.
+
+**At scale — one rFVS run per stand × scenario, in parallel.** `project_stand.R` is
+the single-stand exploration driver. To fan rFVS-driven runs across many stands and
+scenarios as a SLURM array — each task running its own between-cycle R config — use
+[`generate_rfvs_jobs.R`](generate_rfvs_jobs.R) (grid → `jobs.csv`),
+[`rfvs_run_one.R`](rfvs_run_one.R) (per-task driver), and
+[`../../cluster/fvs_rfvs_array.sbatch`](../../cluster/fvs_rfvs_array.sbatch). The
+worked example is [03-rfvs-insim](../../examples/03-rfvs-insim/).
 
 ## Notes
 

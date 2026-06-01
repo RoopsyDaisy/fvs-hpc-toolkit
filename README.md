@@ -26,28 +26,44 @@ logic. The container stays fixed; the workflow is yours.
 
 ## Get started
 
-- **[QUICKSTART.md](QUICKSTART.md)** — run one FVS stand on a compute node, by
-  hand, in ~5 minutes (pull the image → submit → read the output). Start here.
+Start with the **[example workflows](examples/)** — three runnable, copy-and-adapt
+patterns, each a minimal version of a real HPC workflow:
+
+1. **[01-single-run](examples/01-single-run/)** — one FVS run as a SLURM job on a
+   compute node. *Prove the path works; start here.*
+2. **[02-parallel-batch](examples/02-parallel-batch/)** — generate N keyword files
+   → SLURM array → aggregate (incl. **Monte Carlo** sweeps).
+3. **[03-rfvs-insim](examples/03-rfvs-insim/)** — R drives FVS with custom logic
+   *between cycles*, one (stand × scenario) per array task.
+
+Then the references:
 - **[docs/HELLGATE.md](docs/HELLGATE.md)** — the full Hellgate runbook: first-time
-  cluster probe, storage, partitions/account, and the parallel array batch.
-- **[cluster/README.md](cluster/README.md)** — the batch runner (`fvs_array.sbatch`)
-  in detail.
-- **[scripts/r_workflow/README.md](scripts/r_workflow/README.md)** — generating
-  keyword files in R (one per stand, or a parameter sweep).
+  cluster probe, storage, partitions/account, scratch→projects.
+- **[cluster/README.md](cluster/README.md)** — the array runners in detail.
+- **[scripts/r_workflow/README.md](scripts/r_workflow/README.md)** — the R
+  generators + the rFVS driver, under the hood.
+
+First-time setup (`TK`, `SIF`, a scratch work dir) is in
+[docs/HELLGATE.md](docs/HELLGATE.md); every example assumes it.
 
 ## Layout
 
 ```
-cluster/              SLURM + Apptainer batch runner
-  fvs_array.sbatch      one array task per keyword file
-  fvs_run_one.sh        per-task unit (isolated run dir → FVS --keywordfile=)
-  run_local.sh          run the same batch with no scheduler/container (testing)
+examples/             three runnable workflow patterns (the front door)
+  01-single-run/        one FVS run as a SLURM job
+  02-parallel-batch/    N keyfiles → array → aggregate (+ Monte Carlo sweep)
+  03-rfvs-insim/        R-in-the-loop array; per-job R config in configs/
+  inventory/            bundled 3-stand sample so the examples run from a clone
+cluster/              SLURM + Apptainer runners
+  fvs_array.sbatch      CLI array — one task per keyword file
+  fvs_rfvs_array.sbatch rFVS array — one task per (stand × scenario) job
+  fvs_run_one.sh        per-task CLI unit (isolated run dir → FVS --keywordfile=)
+  run_local.sh          run a batch with no scheduler/container (workstation/CI)
   build_sif.sh          convert an OCI image to a .sif (if not pulling from GHCR)
   hellgate_probe.sh     first-contact cluster probe (partitions, account, egress…)
 scripts/
-  r_workflow/           R keyword-file generators (database-style batch + rFVS)
+  r_workflow/           R generators (keyfiles, sweep, rFVS jobs) + the rFVS driver
   reference_scripts/    FVS's own R helpers, reused not reinvented
-examples/iet01/        a self-contained FVS example that runs out of the box
 tests/                 pure-R unit tests + an integration test against the image
 docs/                  Hellgate runbook + the RCI onboarding docs
 ```
