@@ -1,0 +1,62 @@
+name: CI
+
+# Validate the toolkit against the *published* engine image — no submodule, no
+# image build here. fvs-containers builds + publishes the image; this repo proves
+# the workflow runs against it. (Have fvs-containers' publish.yaml fire a
+# repository_dispatch here, or add a nightly schedule, to catch image drift.)
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  # repository_dispatch:        # uncomment to let fvs-containers trigger this on publish
+  #   types: [engine-published]
+
+env:
+  ENGINE_IMAGE: ghcr.io/roopsydaisy/fvs-containers-engine:ie
+
+jobs:
+  unit:
+    name: Unit tests (pure R, no engine)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install R
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends r-base-core
+      - name: Run unit tests (integration self-skips without FVS)
+        run: Rscript tests/run_tests.R
+
+  shellcheck:
+    name: Lint shell scripts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends shellcheck
+      - run: shellcheck cluster/*.sh cluster/fvs_array.sbatch
+
+  integration:
+    name: Full suite + batch runner against the published image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pull the engine image
+        run: docker pull "$ENGINE_IMAGE"
+      - name: Full test suite inside the image (unit + real FVS engine)
+        run: |
+          docker run --rm -v "$PWD:/w" -w /w "$ENGINE_IMAGE" \
+            Rscript tests/run_tests.R
+      - name: Batch runner end-to-end (run_local.sh on the iet01 example)
+        run: |
+          docker run --rm -v "$PWD:/w" "$ENGINE_IMAGE" bash -c '
+            set -euo pipefail
+            cd /tmp
+            cp /w/examples/iet01/iet01.key /w/examples/iet01/iet01.tre .
+            echo "$PWD/iet01.key" > keyfiles.txt
+            VARIANT=ie bash /w/cluster/run_local.sh keyfiles.txt runs
+            # assert a real multi-cycle projection landed, not just exit 0
+            test -s runs/iet01/iet01.sum
+            cycles=$(grep -c "^[12][0-9][0-9][0-9]" runs/iet01/iet01.sum || true)
+            echo "iet01.sum projection rows: $cycles"
+            test "$cycles" -ge 3
+            echo "OK: batch runner produced a real projection against the image"
+          '

@@ -1,0 +1,23 @@
+# FVS run artifacts
+runs/
+outputs/
+*.sif
+hellgate_probe/
+
+# FVS databases + generated keyword batches (regenerate from inputs)
+FVS_Data.db
+FVSOut.db
+*.out
+*.trl
+*.sum
+keyfiles.txt
+sweep_manifest.csv
+
+# User-supplied inventory CSVs (not shipped — see data/README.md)
+data/*.csv
+data/*.xlsx
+
+# Editor / OS
+.DS_Store
+.Rhistory
+.RData
