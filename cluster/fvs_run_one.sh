@@ -53,7 +53,12 @@ cd "$RUNDIR" || { echo "ERROR: cannot cd into $RUNDIR" >&2; exit 1; }
 base="$(basename "$KEY")"
 
 rc=0
-if [ -n "${SIF:-}" ]; then
+# Use Apptainer only if a SIF is given AND the apptainer binary is reachable. The
+# second test matters when this runs *inside* the engine container already (e.g.
+# `run_local.sh` from an `apptainer shell`): there `$SIF` may be inherited from the
+# host but there's no apptainer binary, and FVS is already on PATH -- so fall
+# through to the native branch instead of erroring with "apptainer: not found".
+if [ -n "${SIF:-}" ] && command -v apptainer >/dev/null 2>&1; then
   # --cleanenv strips host env vars from the container so the run is reproducible
   # across submit hosts (FVS is a Fortran binary that reads only its keyword file
   # + cwd inputs; nothing in our flow needs $SLURM_* / $LD_LIBRARY_PATH / R-related
@@ -62,6 +67,8 @@ if [ -n "${SIF:-}" ]; then
   # FS is untouched.
   apptainer exec --cleanenv "$SIF" "$PRG" --keywordfile="$base" </dev/null || rc=$?
 else
+  # Native binary: FVS_BIN/PRG, or PRG on PATH (incl. inside the engine container,
+  # where FVS_BIN=/opt/fvs/bin is set and FVSie is on PATH).
   "${FVS_BIN:+$FVS_BIN/}$PRG" --keywordfile="$base" </dev/null || rc=$?
 fi
 
