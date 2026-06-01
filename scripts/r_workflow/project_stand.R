@@ -37,8 +37,12 @@ trees  <- read_input_csv(repo_root, INPUT_TREE_CSV)
 args     <- commandArgs(trailingOnly = TRUE)
 stand_id <- if (length(args) >= 1 && nzchar(args[1])) args[1] else "CARB_2"
 years    <- if (length(args) >= 2 && nzchar(args[2])) as.integer(args[2]) else 55L
+# Engine (.so) dir: arg3, else $FVS_BIN (the image sets this to /opt/fvs/bin),
+# else the dev-container fallback. So `apptainer exec fvs_ie.sif Rscript …` works
+# with no extra args.
 fvs_bin  <- if (length(args) >= 3 && nzchar(args[3])) args[3] else
-  file.path(repo_root, ".devcontainer", "fvs-bin")
+            if (nzchar(Sys.getenv("FVS_BIN")))        Sys.getenv("FVS_BIN") else
+            file.path(repo_root, ".devcontainer", "fvs-bin")
 fvs_bin  <- normalizePath(fvs_bin)  # absolute: survives the setwd() below
 
 stand <- stands[stands$STAND_ID == stand_id, , drop = FALSE]
@@ -48,8 +52,9 @@ if (nrow(tree)  == 0) stop("no trees for stand: ", stand_id)
 stand <- stand[1, , drop = FALSE]
 tree$fvs.TREE_ID <- seq_len(nrow(tree))  # consecutive ids so output trees link back
 
-# write.FVSfiles() writes into a relative "temp" dir; run from a per-stand workdir
-workdir <- file.path(repo_root, "outputs", "r_project", stand_id)
+# write.FVSfiles() writes into a relative "temp" dir; give each stand its own
+# workdir under the CURRENT directory, so outputs land in your work dir (not the repo)
+workdir <- file.path(getwd(), "r_project", stand_id)
 dir.create(workdir, recursive = TRUE, showWarnings = FALSE)
 old_wd <- setwd(workdir)
 on.exit(setwd(old_wd), add = TRUE)

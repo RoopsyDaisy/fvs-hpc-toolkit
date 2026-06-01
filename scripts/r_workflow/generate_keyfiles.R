@@ -72,6 +72,8 @@ writeLines(manifest, file.path(outdir, "keyfiles.txt"))
 cat(sprintf("\nGenerated %d keyword file(s) in %s\n", length(manifest), outdir))
 cat(sprintf("Manifest:    %s\n", file.path(outdir, "keyfiles.txt")))
 cat(sprintf("Input DB:    %s\n\n", normalizePath(input_db)))
-cat("Run the batch locally with:\n")
-cat(sprintf("  FVS_BIN=.devcontainer/fvs-bin VARIANT=ie FVS_INPUT=%s \\\n    cluster/run_local.sh %s outputs/r_runs\n\n",
+cat("Run the batch with cluster/run_local.sh -- inside the engine image FVS is on\n")
+cat("PATH (else set SIF=fvs_ie.sif, or FVS_BIN=<dir with FVSie>), e.g.:\n")
+cat(sprintf("  VARIANT=ie FVS_INPUT=%s cluster/run_local.sh %s r_runs\n",
             normalizePath(input_db), file.path(outdir, "keyfiles.txt")))
+cat("(or submit cluster/fvs_array.sbatch for many stands -- see the README).\n\n")

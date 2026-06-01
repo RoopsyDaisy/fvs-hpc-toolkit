@@ -1,17 +1,16 @@
 # R workflows for FVS
 
-R-based ways to generate FVS keyword files and drive the engine. These scripts
-need R with `RSQLite`, `DBI`, and `rFVS` — which the **engine image** provides, so
-run them through the container rather than bare system R:
+R-based ways to generate FVS keyword files and drive the engine. They need R with
+`RSQLite`, `DBI`, and `rFVS` — all provided by the **engine image** — and the
+Hellgate login node has no R of its own, so these run *inside the container*. Two
+ways in:
 
-```bash
-apptainer exec fvs_ie.sif Rscript scripts/r_workflow/build_input_db.R …
-```
+- **Interactive (use this for prep):** `apptainer shell` into the image once, then
+  run the steps with `Rscript`, `FVSie`, and `$FVS_BIN` all on `PATH`.
+- **One-off / scripted:** `apptainer exec "$SIF" Rscript …`.
 
-(The examples below show bare `Rscript …` for brevity — prefix them with
-`apptainer exec fvs_ie.sif` on the cluster, or run on a workstation that has those
-R packages.) Because the engine is identical everywhere, a keyword file generated
-here runs the same on the HPC batch.
+The at-scale **SLURM array** runs non-interactively via `apptainer exec` and is
+covered in [`../../cluster/README.md`](../../cluster/README.md).
 
 There are two tracks, for two different needs:
 
@@ -25,82 +24,99 @@ Both reuse FVS's own R code rather than reinventing it: the batch generator is
 flat-file writer is the course reference `write.FVSfiles()`
 ([../reference_scripts/fvs_keyword_file_functions.R](../reference_scripts/fvs_keyword_file_functions.R)).
 
+## Setup — a work dir on scratch, then shell into the image
+
+Keep the clone as *code*; run in a scratch **work dir** so outputs (the DB,
+keyword files, `runs/`) land there, not in the repo:
+
+```bash
+export TK=/mnt/beegfs/scratch/$USER/fvs-hpc-toolkit    # this clone (code)
+export SIF=/mnt/beegfs/scratch/$USER/fvs_ie.sif         # the pulled engine image
+export FVS_DATA_DIR=$TK/examples/inventory              # bundled 3-stand sample; omit to use your own data/
+
+mkdir -p /mnt/beegfs/scratch/$USER/run1 && cd /mnt/beegfs/scratch/$USER/run1
+apptainer shell --bind /mnt/beegfs/scratch "$SIF"       # enter the container
+# the prompt is now  Apptainer>   — run the track steps below, then `exit`
+```
+
+Inside the shell, your work dir is the current directory and everything writes
+there. (`--bind /mnt/beegfs/scratch` makes scratch visible inside; home is
+auto-mounted, so if your clone/work dir are in home you can drop it.)
+
 ## Track A — batch (R generates keyword files → file-based runner)
 
 R builds an FVS input database from the inventory CSVs, then templates one
 *database-style* keyword file per stand (each reads its records from the shared
 `FVS_Data.db` via `DSNin`/`StandSQL`/`TreeSQL`, writes to its own `FVSOut.db`).
-The keyword files are plain inputs to the existing batch runner — see
-[../../cluster/README.md](../../cluster/README.md) for the SLURM/Apptainer path on Hellgate.
 
-Run each step through the engine image, from the repo root (it supplies R +
-`RSQLite` + `rFVS`). `SIF` is your pulled `fvs_ie.sif`. This runs out of the box on
-the **bundled 3-stand sample** (`FVS_DATA_DIR=examples/inventory`) — no data to
-supply; for real work, drop your own CSVs in `data/` and omit `FVS_DATA_DIR` (see
-[`../../data/README.md`](../../data/README.md)).
+Inside the container shell, from your work dir:
 
 ```bash
-SIF=/mnt/beegfs/scratch/$USER/fvs_ie.sif
-export FVS_DATA_DIR=examples/inventory      # the bundled sample; omit to use data/
-
 # 1. inventory CSVs -> FVS_Data.db (FVS_StandInit + FVS_TreeInit tables)
-apptainer exec --env FVS_DATA_DIR="$FVS_DATA_DIR" "$SIF" \
-  Rscript scripts/r_workflow/build_input_db.R outputs/r_batch/FVS_Data.db all
+Rscript $TK/scripts/r_workflow/build_input_db.R FVS_Data.db all
 
 # 2. one keyword file per stand + a keyfiles.txt manifest (55-year projection)
-apptainer exec --env FVS_DATA_DIR="$FVS_DATA_DIR" "$SIF" \
-  Rscript scripts/r_workflow/generate_keyfiles.R outputs/r_batch all 55
+Rscript $TK/scripts/r_workflow/generate_keyfiles.R "$PWD" all 55
 
-# 3. run the batch through the image (sequential; for many stands submit the
-#    SLURM array in cluster/README.md instead of run_local)
-SIF="$SIF" VARIANT=ie FVS_INPUT=$PWD/outputs/r_batch/FVS_Data.db \
-  cluster/run_local.sh outputs/r_batch/keyfiles.txt outputs/r_runs
+# 3. run the batch — FVS is on PATH in the shell, so no SIF/FVS_BIN needed
+VARIANT=ie FVS_INPUT=$PWD/FVS_Data.db bash $TK/cluster/run_local.sh keyfiles.txt r_runs
 ```
 
-Results land in `outputs/r_runs/<STAND_ID>/FVSOut.db` (tables `FVS_Summary2`,
+Results land in `r_runs/<STAND_ID>/FVSOut.db` (tables `FVS_Summary2`,
 `FVS_Compute`, …). Step 2 takes an explicit stand list (`CARB_2,CARB_3`) or `all`.
 
-> On a **workstation** that already has R + `rFVS`/`RSQLite` and a native
-> `FVS<variant>` binary, drop the `apptainer exec "$SIF"` prefixes in steps 1–2 and
-> use `FVS_BIN=/dir/with/FVSie` instead of `SIF=` in step 3.
+**For many stands, submit the SLURM array instead of `run_local`** — a batch job
+is non-interactive, so run this *outside* the shell:
+
+```bash
+exit                                            # leave the container shell
+sbatch --array=1-$(wc -l < keyfiles.txt)%50 \
+       --partition='cpu(all)' --account=afflecklab --time=00:15:00 \
+       --export=SIF=$SIF,VARIANT=ie,MANIFEST=$PWD/keyfiles.txt,FVS_INPUT=$PWD/FVS_Data.db,CLUSTER_DIR=$TK/cluster \
+       $TK/cluster/fvs_array.sbatch
+```
+
+> **Workstation (no container):** if you have R + `rFVS`/`RSQLite` and a native
+> `FVS<variant>` binary, run the `Rscript …` lines directly (no shell) and pass
+> `FVS_BIN=/dir/with/FVSie` to `run_local.sh`.
 
 ### Track A (sweep) — parameter sweep / Monte Carlo
 
-To vary a treatment across runs (the Monte Carlo pattern), use
-`generate_sweep.R` instead of `generate_keyfiles.R` at step 2. It expands a grid
-of `(stand × treatment)` cells (`expand.grid`, optionally random-subsampled),
-injects the treatment into each keyword file via
-`fvsMakeKeyFile(moreKeywords=...)`, gives every cell a unique base name so each
-gets its own run dir + `FVSOut.db`, and writes a `sweep_manifest.csv` mapping
-`run_id → parameters`. The default treatment is a thin-from-below to a residual
-basal area (`ThinBBA`), swept over `none,60,100,140` ft²/acre.
+To vary a treatment across runs (the Monte Carlo pattern), use `generate_sweep.R`
+instead of `generate_keyfiles.R` at step 2. It expands a grid of
+`(stand × treatment)` cells (`expand.grid`, optionally random-subsampled), injects
+the treatment into each keyword file via `fvsMakeKeyFile(moreKeywords=...)`, gives
+every cell a unique base name so each gets its own run dir + `FVSOut.db`, and
+writes a `sweep_manifest.csv` mapping `run_id → parameters`. The default treatment
+is a thin-from-below to a residual basal area (`ThinBBA`), swept over
+`none,60,100,140` ft²/acre.
+
+Inside the container shell, from your work dir:
 
 ```bash
-# 1. inventory CSVs -> FVS_Data.db (same as above)
-Rscript scripts/r_workflow/build_input_db.R outputs/r_sweep/FVS_Data.db CARB_2,CARB_3,CARB_4
+Rscript $TK/scripts/r_workflow/build_input_db.R FVS_Data.db CARB_2,CARB_3,CARB_4
 
-# 2. sweep keyfiles: baseline + 3 residual-BA thinnings at year 2033, per stand
 SWEEP_RESID_BA="none,60,100,140" SWEEP_THIN_YEAR=2033 \
-  Rscript scripts/r_workflow/generate_sweep.R outputs/r_sweep CARB_2,CARB_3,CARB_4 55
+  Rscript $TK/scripts/r_workflow/generate_sweep.R "$PWD" CARB_2,CARB_3,CARB_4 55
 
-# 3. run the whole sweep through the same batch runner
-FVS_BIN=.devcontainer/fvs-bin VARIANT=ie FVS_INPUT=$PWD/outputs/r_sweep/FVS_Data.db \
-  cluster/run_local.sh outputs/r_sweep/keyfiles.txt outputs/r_sweep_runs
+VARIANT=ie FVS_INPUT=$PWD/FVS_Data.db bash $TK/cluster/run_local.sh keyfiles.txt r_sweep_runs
 ```
 
 Env knobs: `SWEEP_RESID_BA` (comma list; `none` = un-thinned baseline),
-`SWEEP_THIN_YEAR`, `SWEEP_SAMPLE=N` (randomly sample N grid cells for a true
-Monte Carlo draw instead of the full grid), `SWEEP_SEED`. To sweep a *different*
+`SWEEP_THIN_YEAR`, `SWEEP_SAMPLE=N` (randomly sample N grid cells for a true Monte
+Carlo draw instead of the full grid), `SWEEP_SEED`. To sweep a *different*
 treatment or an Event-Monitor threshold, edit `treat_record()` in the script —
 the grid/manifest/batch plumbing is treatment-agnostic.
 
-Aggregate the per-run `FVSOut.db` files back against the manifest with RSQLite:
+Aggregate the per-run `FVSOut.db` files back against the manifest with RSQLite.
+Save this as `aggregate.R` in your work dir and run it in the shell
+(`Rscript aggregate.R`):
 
 ```r
 library(RSQLite)
-man <- read.csv("outputs/r_sweep/sweep_manifest.csv", stringsAsFactors = FALSE)
+man <- read.csv("sweep_manifest.csv", stringsAsFactors = FALSE)
 agg <- do.call(rbind, lapply(seq_len(nrow(man)), function(i) {
-  con <- dbConnect(SQLite(), file.path("outputs/r_sweep_runs", man$run_id[i], "FVSOut.db"))
+  con <- dbConnect(SQLite(), file.path("r_sweep_runs", man$run_id[i], "FVSOut.db"))
   on.exit(dbDisconnect(con))
   s <- dbGetQuery(con, "SELECT Year, BA, Tpa, MCuFt FROM FVS_Summary2 ORDER BY Year, RowID")
   cbind(man[i, ], s)              # joins parameters onto every summary row
@@ -121,10 +137,15 @@ library, run it cycle-by-cycle, and pull per-cycle tree lists + the summary into
 in memory (no database). This is where you'd insert R logic that the keyword-file
 Event Monitor can't express.
 
+Inside the container shell, from your work dir:
+
 ```bash
-Rscript scripts/r_workflow/project_stand.R CARB_2 55
-# -> outputs/r_project/CARB_2/{tree_list.csv,stand_summary.csv}
+Rscript $TK/scripts/r_workflow/project_stand.R CARB_2 55
+# -> r_project/CARB_2/{tree_list.csv,stand_summary.csv}
 ```
+
+The engine `.so` resolves automatically from `$FVS_BIN` (the image sets it to
+`/opt/fvs/bin`); pass a 3rd argument to override.
 
 ## Notes
 
@@ -142,3 +163,4 @@ Rscript scripts/r_workflow/project_stand.R CARB_2 55
   `rFVS::fvsMakeKeyFile` produce) reads/writes via SQLite and feeds the batch.
   *Flat-file* (`write.FVSfiles`) pairs a `.key` with a `.tre` and suits the rFVS
   in-memory track.
+```
