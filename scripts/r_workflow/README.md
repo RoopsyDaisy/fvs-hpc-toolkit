@@ -34,17 +34,22 @@ The keyword files are plain inputs to the existing batch runner — see
 [../../cluster/README.md](../../cluster/README.md) for the SLURM/Apptainer path on Hellgate.
 
 Run each step through the engine image, from the repo root (it supplies R +
-`RSQLite` + `rFVS`). `SIF` is your pulled `fvs_ie.sif`; the inventory CSVs must be
-in `data/` (see [`../../data/README.md`](../../data/README.md)).
+`RSQLite` + `rFVS`). `SIF` is your pulled `fvs_ie.sif`. This runs out of the box on
+the **bundled 3-stand sample** (`FVS_DATA_DIR=examples/inventory`) — no data to
+supply; for real work, drop your own CSVs in `data/` and omit `FVS_DATA_DIR` (see
+[`../../data/README.md`](../../data/README.md)).
 
 ```bash
 SIF=/mnt/beegfs/scratch/$USER/fvs_ie.sif
+export FVS_DATA_DIR=examples/inventory      # the bundled sample; omit to use data/
 
 # 1. inventory CSVs -> FVS_Data.db (FVS_StandInit + FVS_TreeInit tables)
-apptainer exec "$SIF" Rscript scripts/r_workflow/build_input_db.R outputs/r_batch/FVS_Data.db all
+apptainer exec --env FVS_DATA_DIR="$FVS_DATA_DIR" "$SIF" \
+  Rscript scripts/r_workflow/build_input_db.R outputs/r_batch/FVS_Data.db all
 
 # 2. one keyword file per stand + a keyfiles.txt manifest (55-year projection)
-apptainer exec "$SIF" Rscript scripts/r_workflow/generate_keyfiles.R outputs/r_batch CARB_2,CARB_3,CARB_4 55
+apptainer exec --env FVS_DATA_DIR="$FVS_DATA_DIR" "$SIF" \
+  Rscript scripts/r_workflow/generate_keyfiles.R outputs/r_batch all 55
 
 # 3. run the batch through the image (sequential; for many stands submit the
 #    SLURM array in cluster/README.md instead of run_local)
@@ -53,7 +58,7 @@ SIF="$SIF" VARIANT=ie FVS_INPUT=$PWD/outputs/r_batch/FVS_Data.db \
 ```
 
 Results land in `outputs/r_runs/<STAND_ID>/FVSOut.db` (tables `FVS_Summary2`,
-`FVS_Compute`, …). Use `STANDS=all` in step 2 to template every stand.
+`FVS_Compute`, …). Step 2 takes an explicit stand list (`CARB_2,CARB_3`) or `all`.
 
 > On a **workstation** that already has R + `rFVS`/`RSQLite` and a native
 > `FVS<variant>` binary, drop the `apptainer exec "$SIF"` prefixes in steps 1–2 and
