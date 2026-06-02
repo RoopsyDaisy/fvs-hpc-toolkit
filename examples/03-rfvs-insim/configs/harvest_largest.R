@@ -16,6 +16,8 @@ HOOKS <- list(
     yr <- as.numeric(fvsGetEventMonitorVariables("Year"))
     if (!length(yr) || yr != .target_year) return(invisible())
     ta    <- fvsGetTreeAttrs(c("dbh", "tpa"))   # one row per live tree record
+    if (!nrow(ta) || sum(ta$tpa) <= 0) return(invisible())  # nothing alive to cut
+                                                # (guards the /sum(tpa) below vs NaN)
     ord   <- order(ta$dbh, decreasing = TRUE)   # largest DBH first
     share <- ta$tpa[ord] / sum(ta$tpa)          # each record's share of stand TPA
     cum   <- cumsum(share)

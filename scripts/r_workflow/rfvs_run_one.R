@@ -88,8 +88,10 @@ summ <- out[[ if (length(si)) si[length(si)] else length(out) ]]   # matrix
 write.csv(as.data.frame(summ), "stand_summary.csv", row.names = FALSE)
 
 # Provenance: stamp enough to reproduce this run. toolkit_sha is best-effort (git
-# may be absent in the image / .git not mounted); image digest comes from the
-# caller via $IMAGE (e.g. the sbatch passes `apptainer inspect` output).
+# may be absent in the image / .git not mounted); $IMAGE is the .sif path the
+# array ran (set by the sbatch). The `:ie` tag MOVES, so for a durable content
+# digest capture `sha256sum`/`apptainer inspect` of that .sif out-of-band and keep
+# it with these outputs — we record the path here, not a hash (no per-task cost).
 toolkit_sha <- tryCatch(
   system2("git", c("-C", repo_root, "rev-parse", "--short", "HEAD"),
           stdout = TRUE, stderr = FALSE)[1], error = function(e) NA)
@@ -102,7 +104,7 @@ writeLines(c(
   sprintf("desc:        %s", desc),
   sprintf("seed:        %s", if (is.na(seed)) "none" else seed),
   sprintf("toolkit_sha: %s", toolkit_sha),
-  sprintf("image:       %s", Sys.getenv("IMAGE", "unset")),
+  sprintf("image_sif:   %s", Sys.getenv("IMAGE", "unset")),
   sprintf("engine_bin:  %s", fvs_bin),
   sprintf("run_at:      %s", format(Sys.time(), "%Y-%m-%dT%H:%M:%S%z"))
 ), "run_info.txt")

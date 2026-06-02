@@ -47,6 +47,11 @@ cd /mnt/beegfs/scratch/$USER
 apptainer pull fvs_ie.sif docker://ghcr.io/roopsydaisy/fvs-containers-engine:ie
 ```
 
+> **The `:ie` tag moves.** To refresh an image already on scratch, `rm -f fvs_ie.sif`
+> first (or `pull --force`) — a plain `pull` won't overwrite, so you'd silently keep
+> the stale engine. The `xattr … ENOTSUP "user.rootlesscontainers"` warnings during
+> the pull are normal (scratch doesn't support user xattrs); the pull still completes.
+
 The image carries R + rFVS as well as the `FVSie` CLI, so keyword generation can
 run on the cluster too, not just the bare engine.
 

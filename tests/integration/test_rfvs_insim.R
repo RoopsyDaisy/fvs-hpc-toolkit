@@ -34,9 +34,20 @@ local({
   jobs_csv <- file.path(wd, "jobs.csv"); write.csv(jobs, jobs_csv, row.names = FALSE)
 
   old <- setwd(wd); on.exit(setwd(old), add = TRUE)   # outputs land under wd/runs
-  for (r in c(1, 2))
-    system2("Rscript", c(shQuote(driver), shQuote(jobs_csv), r, "runs"),
-            stdout = FALSE, stderr = FALSE)
+  driver_ok <- TRUE
+  for (r in c(1, 2)) {
+    # Capture both streams (not stdout=FALSE) so a driver crash surfaces its error
+    # instead of a bare downstream FAIL. system2 sets attr "status" on non-zero exit.
+    log <- system2("Rscript", c(shQuote(driver), shQuote(jobs_csv), r, "runs"),
+                   stdout = TRUE, stderr = TRUE)
+    rc  <- attr(log, "status")
+    if (!is.null(rc) && rc != 0) {
+      driver_ok <- FALSE
+      cat(sprintf("[rfvs/insim] driver job %d exited %s:\n%s\n",
+                  r, rc, paste(log, collapse = "\n")), file = stderr())
+    }
+  }
+  check("rfvs/driver-exits-clean", driver_ok)
 
   read_summ <- function(id) {
     f <- file.path("runs", id, "stand_summary.csv")

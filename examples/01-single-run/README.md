@@ -11,7 +11,9 @@ engine image.
 ## Run it (on Hellgate)
 
 ```bash
-# pull the engine image once (skip if you already have it on scratch)
+# pull the engine image once (skip if you already have it on scratch).
+# NOTE: the :ie tag MOVES — to refresh an image you already have, `rm -f fvs_ie.sif`
+# first (a plain pull won't overwrite). xattr "ENOTSUP" warnings on scratch are normal.
 cd /mnt/beegfs/scratch/$USER
 apptainer pull fvs_ie.sif docker://ghcr.io/roopsydaisy/fvs-containers-engine:ie
 

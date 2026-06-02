@@ -28,6 +28,11 @@ cd /mnt/beegfs/scratch/$USER
 apptainer pull fvs_ie.sif docker://ghcr.io/roopsydaisy/fvs-containers-engine:ie
 ```
 
+> The `:ie` tag **moves**. To refresh an image already on scratch, `rm -f fvs_ie.sif`
+> first (or `pull --force`) — a plain `pull` won't overwrite, so you'd silently keep
+> the stale engine. The `xattr … ENOTSUP "user.rootlesscontainers"` warnings during
+> the pull are normal (scratch doesn't support user xattrs); the pull still completes.
+
 *Only if login-node egress is closed or you need a custom build:* build the OCI
 image in [fvs-containers](https://github.com/RoopsyDaisy/fvs-containers)
 (`ENGINE=podman TARGETS=cluster scripts/build_images.sh`), convert it with
