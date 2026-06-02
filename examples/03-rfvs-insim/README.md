@@ -12,6 +12,15 @@ a cycle, coupling to external data. If your logic fits in keyword/Event-Monitor
 records, use [02-parallel-batch](../02-parallel-batch/) instead — it's simpler and
 faster.
 
+This page is **self-contained** — start here and follow it top to bottom; you do
+not need to have run examples 01 or 02 first.
+
+> **Status (2026-06-02):** validated locally against a native engine (the three
+> scenarios diverge as expected, below). The **SLURM array on Hellgate has not yet
+> been run end-to-end** — the likely first snag is the `--bind` / absolute config
+> paths in `jobs.csv` (see the note on step 2). If a job can't find its config,
+> that's the spot to check.
+
 ## The pieces
 
 | Piece | What it is |
@@ -26,16 +35,42 @@ The three bundled configs show the spectrum: `baseline` (no treatment),
 (inspect the live tree list, remove the largest stems until ~30% of TPA is cut,
 TPA-weighted — the case that *needs* R).
 
-## Run it (on Hellgate)
+## Setup — do this first
 
-Setup as in the [toolkit README](../../README.md) — `TK`, `SIF`, a scratch work
-dir. The sample inventory ships, so this runs from a clone with no data to supply.
+Copy-paste this whole block. It pulls the engine image, points at your clone +
+the sample inventory, makes a fresh work dir on scratch, and then **fails loudly
+if anything is unset** — which beats a cryptic `apptainer` error later.
+
+```bash
+# 1. Engine image onto scratch (skip the pull if you already have it).
+#    NOTE: the :ie tag MOVES. To refresh an existing image, `rm -f fvs_ie.sif` first
+#    (or add `--force`) — a plain pull won't overwrite, so you'd silently keep the old one.
+cd /mnt/beegfs/scratch/$USER
+[ -f fvs_ie.sif ] || apptainer pull fvs_ie.sif docker://ghcr.io/roopsydaisy/fvs-containers-engine:ie
+#    (xattr "ENOTSUP … user.rootlesscontainers" warnings during the pull are normal
+#     on scratch — it doesn't support user xattrs. Harmless; the pull still completes.)
+
+# 2. The three things every command below needs.
+export TK=$HOME/fvs-hpc-toolkit                    # your clone of this repo
+export SIF=/mnt/beegfs/scratch/$USER/fvs_ie.sif    # the image you just pulled
+export FVS_DATA_DIR=$TK/examples/inventory         # bundled 3-stand sample
+
+# 3. A fresh work dir on scratch (outputs land here, never in the clone).
+mkdir -p /mnt/beegfs/scratch/$USER/work-03 && cd /mnt/beegfs/scratch/$USER/work-03
+
+# 4. Guard: stop now, with a clear message, if any of the three is unset.
+: "${TK:?run the Setup block — TK is unset}" \
+  "${SIF:?run the Setup block — SIF is unset}" \
+  "${FVS_DATA_DIR:?run the Setup block — FVS_DATA_DIR is unset}"
+[ -f "$SIF" ] || echo "WARNING: $SIF not found — pull it (Setup step 1)"
+```
+
+## Run it (on Hellgate)
 
 **1. Generate the job grid** (light — a quick `apptainer exec`, no compute):
 
 ```bash
-export FVS_DATA_DIR=$TK/examples/inventory          # bundled 3-stand sample
-apptainer exec --env FVS_DATA_DIR="$FVS_DATA_DIR" "$SIF" \
+apptainer exec --cleanenv --bind /mnt/beegfs --env FVS_DATA_DIR="$FVS_DATA_DIR" "$SIF" \
   Rscript $TK/scripts/r_workflow/generate_rfvs_jobs.R "$PWD/jobs" CARB_2,CARB_3,CARB_4 80
 #  -> jobs/jobs.csv : 9 jobs (3 stands x 3 scenarios)
 ```
@@ -50,12 +85,19 @@ sbatch --array=1-$N%9 --partition='cpu(all)' --account=afflecklab --time=00:20:0
 squeue --me
 ```
 
+> **The one path to watch.** `jobs.csv` stores each scenario's config as an
+> **absolute path** into your clone, and the driver opens it with
+> `normalizePath(..., mustWork=TRUE)` *inside* the container. The clone is under
+> `$HOME` (Apptainer auto-mounts home) and the work dir is bound via `--bind
+> /mnt/beegfs`, so both resolve — but if you put the clone somewhere exotic, bind
+> it too. A task that dies with "No such file or directory" on its config is this.
+
 Each task writes `r_rfvs_runs/<stand>__<scenario>/stand_summary.csv` (+ `run_info.txt`).
 
 **3. Aggregate / compare** (light — in the container):
 
 ```bash
-apptainer exec "$SIF" Rscript -e '
+apptainer exec --bind /mnt/beegfs "$SIF" Rscript -e '
   runs <- list.dirs("r_rfvs_runs", recursive=FALSE)
   rows <- do.call(rbind, lapply(runs, function(d){
     s <- read.csv(file.path(d,"stand_summary.csv"), check.names=FALSE)
@@ -64,10 +106,11 @@ apptainer exec "$SIF" Rscript -e '
   print(rows, row.names=FALSE)'
 ```
 
-Verified locally (native engine): the three scenarios diverge as expected — e.g.
-CARB_2 final-year (2103) basal area is ~15 (baseline) vs ~8 (thin 50%) vs ~11
+Expected (validated locally, native engine): the three scenarios diverge — e.g.
+CARB_2 final-year (2103) basal area ~15 (baseline) vs ~8 (thin 50%) vs ~11
 (harvest-largest), i.e. removing the *largest* stems leaves more BA than thinning
-the same TPA share from across the diameter distribution.
+the same TPA share from across the diameter distribution. Seeing that spread is
+how you know the per-job R logic actually fired.
 
 ## Develop a new scenario
 
