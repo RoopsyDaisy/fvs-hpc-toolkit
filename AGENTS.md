@@ -90,8 +90,8 @@ shell metachars; 2-day max walltime; avoid the preemptable default). Apptainer
 on-cluster); login-node egress to GHCR is open; **`MaxArraySize=10001`** (group
 stands per task or submit multiple arrays beyond that); `DefMemPerCPU` ~1 MB so
 always set `--mem`. Storage: run/output on **scratch** (`/mnt/beegfs/scratch/$USER`),
-move keepers to **projects**. Validated end-to-end on Hellgate: `apptainer exec
-FVSie` on a compute node (job 2215378).
+move keepers to **projects**. All three example workflows validated end-to-end on
+Hellgate (see Status).
 
 ## Status
 
@@ -100,13 +100,18 @@ FVSie` on a compute node (job 2215378).
   producing distinct trajectories (CARB_2 final BA 15/8/11 baseline/thin/harvest),
   the unit tests, and `tests/integration/test_rfvs_insim.R` (asserts baseline vs
   harvest_largest diverge).
-- **Verified on Hellgate:** the engine path only — a single FVS run on a compute
-  node (job 2215378, 2026-06-01).
-- **Not yet run on Hellgate:** examples 02 (CLI array) + 03 (rFVS array) as-written.
-  The likeliest cluster-specific break is `--bind /mnt/beegfs` + the **absolute
-  config paths baked into `jobs.csv`** — if `$TK`/work dir aren't bound,
-  `rfvs_run_one.R`'s `normalizePath(..., mustWork=TRUE)` fails inside the container.
-  That dev pass is the next step before the lecturer touches 02/03.
+- **Verified on Hellgate (2026-06-02): all three example workflows, end-to-end.**
+  01 single run (job 2215378); 02 CLI array (job 2215900 — 3 stands, each
+  `runs/<stand>/FVSOut.db` with a full `FVS_Summary2` projection); 03 rFVS array
+  (job 2215904 — all 9 (stand × scenario) tasks, divergence matching the local
+  baseline *exactly*: CARB_2 final BA 15/11/8 baseline/harvest_largest/thin_to_ba).
+  Each example's README is now self-contained (a guarded Setup block), so a forester
+  picks one and follows it top to bottom.
+- **The `--bind`/absolute-`jobs.csv`-path break we predicted did not happen.** The
+  clone under `$HOME` auto-mounts, so `rfvs_run_one.R`'s
+  `normalizePath(..., mustWork=TRUE)` resolves each config inside the container;
+  `--bind /mnt/beegfs` covers the scratch work dir (the sbatch sets it by default).
+  A clone in an unusual, non-auto-mounted location would still need its own `--bind`.
 - **Deferred until a real large campaign** (documented, not built): >10k array
   chunking, multi-stand-per-task grouping (amortize Apptainer cold-start), and a
   standalone aggregation job.
