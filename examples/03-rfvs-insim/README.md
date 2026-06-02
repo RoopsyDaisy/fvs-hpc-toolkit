@@ -108,10 +108,11 @@ apptainer exec --bind /mnt/beegfs "$SIF" Rscript -e '
 ```
 
 Expected (validated locally, native engine): the three scenarios diverge — e.g.
-CARB_2 final-year (2103) basal area ~15 (baseline) vs ~8 (thin 50%) vs ~11
-(harvest-largest), i.e. removing the *largest* stems leaves more BA than thinning
-the same TPA share from across the diameter distribution. Seeing that spread is
-how you know the per-job R logic actually fired.
+CARB_2 final-year (2103) basal area ~15 (baseline) vs ~8 (thin 50% of TPA) vs ~11
+(harvest-largest, ~30% of TPA). The two treatments cut different TPA shares (50%
+vs 30%) *and* target different parts of the diameter distribution, so the point
+isn't a controlled A/B — it's that each scenario's R logic produces a distinct,
+sensible trajectory. Seeing that spread is how you know the per-job R logic fired.
 
 ## Develop a new scenario
 

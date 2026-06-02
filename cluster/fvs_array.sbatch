@@ -18,6 +18,9 @@
 #   FVS_INPUT  space-separated shared input files (e.g. inventory DB) to stage
 #              into each run dir, for keyword files that read them via DSNIn
 #   CLUSTER_DIR  dir holding fvs_run_one.sh  (default: $SLURM_SUBMIT_DIR/cluster)
+#   BIND       host path(s) bound into the container so the staged-input symlinks
+#              resolve (default /mnt/beegfs, the Hellgate scratch FS); set to your
+#              cluster's shared FS, or "" if it's already a default bind path
 #
 # Build the manifest and size the array, e.g.:
 #   ls inputs/*.key > keyfiles.txt
@@ -33,6 +36,10 @@ MANIFEST="$(readlink -f "${MANIFEST:-keyfiles.txt}")"
 [ -f "$MANIFEST" ] || { echo "ERROR: MANIFEST not found: $MANIFEST" >&2; exit 1; }
 export SIF
 export VARIANT="${VARIANT:-ie}"
+# Default-bind the scratch FS so fvs_run_one.sh's absolute-symlink staging of
+# FVS_INPUT resolves inside the container (mirrors fvs_rfvs_array.sbatch). Export
+# it so the shared runner sees it; an empty BIND disables the extra --bind.
+export BIND="${BIND-/mnt/beegfs}"
 OUTROOT="${OUTROOT:-runs}"
 CLUSTER_DIR="${CLUSTER_DIR:-${SLURM_SUBMIT_DIR:-.}/cluster}"
 

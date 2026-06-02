@@ -50,7 +50,9 @@ from the image.
   it (errors "can only be used at stoppoint 2" elsewhere). `propcut` is per live
   tree record (0 = keep, 1 = cut); scalar is recycled.
 - Read state with `fvsGetTreeAttrs(vars)` (one row per live tree),
-  `fvsGetEventMonitorVariables("Year")` (note the capital Y), `fvsGetSummary`.
+  `fvsGetEventMonitorVariables("Year")`, `fvsGetSummary`. (The EM var name is
+  case-insensitive — `fvsGetEventMonitorVariables` `tolower()`s it internally, so
+  `"Year"`/`"year"` are equivalent; the configs use `"Year"`, `project_stand.R` `"year"`.)
 - **`fvsGetSummary` returns a MATRIX, not a data.frame** — index with `s[,"col"]`
   (`$` fails). Basal area column is **`ATBA`**; removed TPA is `RTpa`.
 - **Domain correctness:** `harvest_largest.R` is **TPA-weighted** — remove the

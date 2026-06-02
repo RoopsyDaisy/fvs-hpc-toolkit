@@ -2,6 +2,14 @@
 # No engine needed. Uses check()/INPUT_*_CSV from run_tests.R. Wrapped in an
 # immediately-invoked function (not local()) so any return()/on.exit() works.
 (function() {
+  # These checks assert the default <repo_root>/data resolution, so neutralize
+  # any inherited FVS_DATA_DIR for their duration (the examples tell users to
+  # `export FVS_DATA_DIR=...`; without this, `reads-present` would look there and
+  # fail spuriously). Restored on exit so we don't perturb later test files.
+  old_fdd <- Sys.getenv("FVS_DATA_DIR", unset = NA)
+  Sys.unsetenv("FVS_DATA_DIR")
+  on.exit(if (!is.na(old_fdd)) Sys.setenv(FVS_DATA_DIR = old_fdd), add = TRUE)
+
   # the constants name the documented fixture files (data/README.md contract)
   check("data_paths/constants",
         identical(INPUT_STAND_CSV, "FVS_Lubrecht_2023_FVS_StandInit.csv") &&
