@@ -10,8 +10,10 @@ The **user-facing toolkit** for running FVS at scale on Apptainer + SLURM (built
 for UM's Hellgate). It does **not** build FVS — it runs the prebuilt engine image
 published from [fvs-containers](https://github.com/RoopsyDaisy/fvs-containers)
 (`ghcr.io/roopsydaisy/fvs-containers-engine:ie`). Two repos, coupled only by that
-image. **Toolkit changes go straight to `main`** (no PR); the PR/CI flow is for
-fvs-containers only.
+image. **Toolkit changes go to `main`** — direct for trivial edits, but **push a
+branch and let CI verify when the outcome is uncertain** (a new `.sbatch`/shellcheck,
+a new test), then `git merge --ff-only`. The PR + CI flow is for fvs-containers
+only (it rebuilds the live engine image).
 
 ## Architecture
 
@@ -51,6 +53,12 @@ from the image.
   `fvsGetEventMonitorVariables("Year")` (note the capital Y), `fvsGetSummary`.
 - **`fvsGetSummary` returns a MATRIX, not a data.frame** — index with `s[,"col"]`
   (`$` fails). Basal area column is **`ATBA`**; removed TPA is `RTpa`.
+- **Domain correctness:** `harvest_largest.R` is **TPA-weighted** — remove the
+  largest stems until ~30% of *TPA* is cut, not 30% of *records* (records carry
+  expansion factors, so record-quantile ≠ stem-quantile). Weight any cut rule by `tpa`.
+- **Reproducibility:** `generate_rfvs_jobs.R` adds a per-job `seed`; `rfvs_run_one.R`
+  `set.seed()`s it and stamps `run_info.txt` (seed, toolkit SHA, image, engine,
+  timestamp). So stochastic hooks reproduce and every output carries provenance.
 
 **R scripting:**
 - Multi-line `if (...) a else b` at top level: **keep `else` trailing** the value
@@ -87,13 +95,21 @@ FVSie` on a compute node (job 2215378).
 
 ## Status
 
-- **Verified locally** (dev container, native engine + bundled sample): all R
-  machinery (build_input_db, generate_keyfiles, generate_sweep, project_stand,
-  generate_rfvs_jobs, rfvs_run_one), the three configs producing distinct
-  trajectories, and the unit tests.
-- **Verified on Hellgate:** the engine path (single FVS run on a compute node).
-- **Not yet run on Hellgate:** examples 01–03 as-written (the `apptainer exec` /
-  `sbatch` paths) — that's the next pass.
+- **Verified locally + by CI** (the integration job runs the suite + a `run_local`
+  batch against the published image): all R machinery, the three rFVS configs
+  producing distinct trajectories (CARB_2 final BA 15/8/11 baseline/thin/harvest),
+  the unit tests, and `tests/integration/test_rfvs_insim.R` (asserts baseline vs
+  harvest_largest diverge).
+- **Verified on Hellgate:** the engine path only — a single FVS run on a compute
+  node (job 2215378, 2026-06-01).
+- **Not yet run on Hellgate:** examples 02 (CLI array) + 03 (rFVS array) as-written.
+  The likeliest cluster-specific break is `--bind /mnt/beegfs` + the **absolute
+  config paths baked into `jobs.csv`** — if `$TK`/work dir aren't bound,
+  `rfvs_run_one.R`'s `normalizePath(..., mustWork=TRUE)` fails inside the container.
+  That dev pass is the next step before the lecturer touches 02/03.
+- **Deferred until a real large campaign** (documented, not built): >10k array
+  chunking, multi-stand-per-task grouping (amortize Apptainer cold-start), and a
+  standalone aggregation job.
 
 ## Testing locally (no cluster)
 
@@ -104,6 +120,8 @@ Rscript tests/run_tests.R
 FVS_DATA_DIR=examples/inventory FVS_BIN=<dir with FVSie> VARIANT=ie \
   Rscript scripts/r_workflow/rfvs_run_one.R <jobs.csv> 1 r_rfvs_runs
 ```
-CI (`.github/workflows/ci.yml`) runs the unit suite on host R, shellchecks the
-scripts, and runs the full suite + a `run_local` batch against the **published
-image**.
+CI (`.github/workflows/ci.yml`) runs the unit suite on host R, shellchecks
+`cluster/*.sh` + `cluster/*.sbatch`, and runs the full suite + a `run_local` batch
++ the rFVS test against the **published image**. Can't run shellcheck/in-image
+locally? Push a branch and poll
+`api.github.com/repos/<owner>/<repo>/commits/<sha>/check-runs` (public, no auth).
