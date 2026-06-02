@@ -15,11 +15,12 @@ faster.
 This page is **self-contained** — start here and follow it top to bottom; you do
 not need to have run examples 01 or 02 first.
 
-> **Status (2026-06-02):** validated locally against a native engine (the three
-> scenarios diverge as expected, below). The **SLURM array on Hellgate has not yet
-> been run end-to-end** — the likely first snag is the `--bind` / absolute config
-> paths in `jobs.csv` (see the note on step 2). If a job can't find its config,
-> that's the spot to check.
+> **Status (2026-06-02):** validated end-to-end on Hellgate — the 9-job grid
+> (3 stands × 3 scenarios) runs as a SLURM array and the scenarios diverge exactly
+> as below (CARB_2 final BA 15/11/8 baseline/harvest_largest/thin_to_ba). The
+> `$HOME` clone auto-mounts, so the absolute config paths in `jobs.csv` resolve
+> inside the container; only a clone in an unusual, non-auto-mounted location would
+> need its own `--bind` (see the note on step 2 if a task can't find its config).
 
 ## The pieces
 
