@@ -26,8 +26,19 @@ logic. The container stays fixed; the workflow is yours.
 
 ## Get started
 
-Start with the **[example workflows](examples/)** — three runnable, copy-and-adapt
-patterns, each a minimal version of a real HPC workflow:
+**On the cluster, clone this repo into your home directory.** The examples assume
+it lives at `~/fvs-hpc-toolkit` (their Setup blocks set `TK=$HOME/fvs-hpc-toolkit`),
+and a home clone is also what lets Apptainer auto-mount it so array jobs can read
+the configs from *inside* the container:
+
+```bash
+cd ~ && git clone https://github.com/RoopsyDaisy/fvs-hpc-toolkit
+```
+
+*(Cloned somewhere else? Just edit the one `TK=` line in each example's Setup block.)*
+
+Then start with the **[example workflows](examples/)** — three runnable,
+copy-and-adapt patterns, each a minimal version of a real HPC workflow:
 
 1. **[01-single-run](examples/01-single-run/)** — one FVS run as a SLURM job on a
    compute node. *Prove the path works; start here.*
@@ -43,8 +54,10 @@ Then the references:
 - **[scripts/r_workflow/README.md](scripts/r_workflow/README.md)** — the R
   generators + the rFVS driver, under the hood.
 
-First-time setup (`TK`, `SIF`, a scratch work dir) is in
-[docs/HELLGATE.md](docs/HELLGATE.md); every example assumes it.
+Each example is **self-contained** — its Setup block pulls the image and sets
+`SIF`/`TK`/`FVS_DATA_DIR` for you, so the only prerequisite is the home clone above.
+For the cluster facts behind it all (first-time probe, storage, partitions/account),
+see [docs/HELLGATE.md](docs/HELLGATE.md).
 
 ## Layout
 

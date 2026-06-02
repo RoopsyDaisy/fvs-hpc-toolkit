@@ -30,7 +30,7 @@ the [example workflows](../examples/) cover single → parallel → rFVS-in-the-
 ## 0. First time on the cluster: run the probe
 
 ```bash
-git clone https://github.com/RoopsyDaisy/fvs-hpc-toolkit && cd fvs-hpc-toolkit
+cd ~ && git clone https://github.com/RoopsyDaisy/fvs-hpc-toolkit && cd fvs-hpc-toolkit
 bash cluster/hellgate_probe.sh           # → hellgate_probe/report.md
 ```
 
