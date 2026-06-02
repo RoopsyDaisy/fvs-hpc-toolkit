@@ -65,7 +65,17 @@ if [ -n "${SIF:-}" ] && command -v apptainer >/dev/null 2>&1; then
   # vars inside the container). Apptainer still binds CWD by default, so the run
   # dir + symlinked inputs remain visible. SIF runs read-only, so the container
   # FS is untouched.
-  apptainer exec --cleanenv "$SIF" "$PRG" --keywordfile="$base" </dev/null || rc=$?
+  #
+  # BIND (optional): extra host path(s) to bind in. The FVS_INPUT files above are
+  # staged as *absolute* symlinks, so their targets must be visible inside the
+  # container. Apptainer auto-mounts home + CWD, but on a cluster whose parallel
+  # FS (e.g. /mnt/beegfs) isn't a default bind path those symlink targets would
+  # dangle -- so bind it. fvs_array.sbatch defaults BIND to the scratch FS (as
+  # fvs_rfvs_array.sbatch does); run_local.sh leaves it unset (a workstation has
+  # nothing extra to bind, and binding a missing path would error).
+  apptainer_flags=(--cleanenv)
+  if [ -n "${BIND:-}" ]; then apptainer_flags+=(--bind "$BIND"); fi
+  apptainer exec "${apptainer_flags[@]}" "$SIF" "$PRG" --keywordfile="$base" </dev/null || rc=$?
 else
   # Native binary: FVS_BIN/PRG, or PRG on PATH (incl. inside the engine container,
   # where FVS_BIN=/opt/fvs/bin is set and FVSie is on PATH).
